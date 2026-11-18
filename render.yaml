@@ -1,0 +1,12 @@
+# Render 배포 설정 (Blueprint)
+# GitHub 저장소 맨 위(package.json과 같은 위치)에 있어야 Render가 읽습니다.
+services:
+  - type: web
+    name: omok-battle
+    runtime: node
+    plan: free
+    region: singapore        # 한국에서 가장 가까운 리전
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true         # GitHub에 수정본을 올리면 자동으로 다시 배포

@@ -1,0 +1,16 @@
+{
+  "name": "omok-battle",
+  "version": "1.0.0",
+  "description": "실시간 1:1 오목 대전 서버 (Node.js + WebSocket)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "license": "MIT"
+}

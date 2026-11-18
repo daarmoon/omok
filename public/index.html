@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>OMOK · 실시간 오목</title>
+  <meta name="theme-color" content="#070a14">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='a' cx='.35' cy='.3'%3E%3Cstop offset='0' stop-color='%23756fb0'/%3E%3Cstop offset='1' stop-color='%23050510'/%3E%3C/radialGradient%3E%3CradialGradient id='b' cx='.35' cy='.3'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='1' stop-color='%23b9c7de'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='24' cy='26' r='17' fill='url(%23a)'/%3E%3Ccircle cx='40' cy='38' r='17' fill='url(%23b)'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <!-- ───────────── 로비 ───────────── -->
+  <main id="lobby" class="screen">
+    <header class="brand">
+      <div class="brand-stones" aria-hidden="true"><span class="gem b"></span><span class="gem w"></span></div>
+      <h1>OMOK</h1>
+      <p>실시간 1:1 오목</p>
+    </header>
+
+    <section class="card">
+      <label class="field">
+        <span>닉네임</span>
+        <input id="name" maxlength="12" placeholder="닉네임을 입력하세요" autocomplete="nickname" spellcheck="false">
+      </label>
+
+      <div id="inviteBox" class="invite" hidden>
+        <p>초대받은 방 <strong id="inviteCode"></strong></p>
+        <button id="joinInvite" class="btn primary wide">입장하기</button>
+        <button id="cancelInvite" class="btn link">다른 방 만들기</button>
+      </div>
+
+      <div id="createBox">
+        <div class="opt">
+          <span>규칙</span>
+          <div class="seg" data-name="rule">
+            <button type="button" data-v="free" class="on">자유룰</button>
+            <button type="button" data-v="no33">쌍삼 금지</button>
+          </div>
+        </div>
+        <div class="opt">
+          <span>수당 제한시간</span>
+          <div class="seg" data-name="timer">
+            <button type="button" data-v="0" class="on">없음</button>
+            <button type="button" data-v="15">15초</button>
+            <button type="button" data-v="30">30초</button>
+            <button type="button" data-v="60">60초</button>
+          </div>
+        </div>
+        <div class="opt">
+          <span>내 돌</span>
+          <div class="seg" data-name="color">
+            <button type="button" data-v="random" class="on">랜덤</button>
+            <button type="button" data-v="b">흑</button>
+            <button type="button" data-v="w">백</button>
+          </div>
+        </div>
+        <button id="create" class="btn primary wide">방 만들기</button>
+
+        <div class="divider"><span>또는 코드로 참가</span></div>
+        <form id="joinForm" class="join-row">
+          <input id="code" maxlength="4" placeholder="ABCD" autocapitalize="characters" autocomplete="off" spellcheck="false">
+          <button class="btn">참가</button>
+        </form>
+      </div>
+    </section>
+
+    <p class="foot">흑이 먼저 둡니다 · 가로 · 세로 · 대각선으로 다섯 개를 먼저 잇는 쪽이 승리</p>
+  </main>
+
+  <!-- ───────────── 게임 ───────────── -->
+  <main id="game" class="screen" hidden>
+    <div class="players">
+      <div class="pcard" id="pb">
+        <span class="gem b"></span>
+        <div class="pinfo"><div class="pname"></div><div class="pmeta"></div></div>
+        <div class="pscore"></div>
+        <div class="ptimer"><i></i></div>
+      </div>
+      <div class="pcard" id="pw">
+        <span class="gem w"></span>
+        <div class="pinfo"><div class="pname"></div><div class="pmeta"></div></div>
+        <div class="pscore"></div>
+        <div class="ptimer"><i></i></div>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board-frame" id="frame">
+        <canvas id="board" aria-label="오목판"></canvas>
+        <div id="hint" class="hint" hidden>한 번 더 탭하면 착수</div>
+        <div id="overlay" class="overlay" hidden>
+          <div class="ov-card">
+            <span class="gem big" id="ovGem"></span>
+            <div class="ov-text">
+              <h2 id="ovTitle"></h2>
+              <p id="ovSub"></p>
+            </div>
+            <div id="ovCode" class="ov-code" hidden></div>
+            <div class="ov-actions">
+              <button id="ovCopy" class="btn" hidden>초대 링크 복사</button>
+              <button id="ovRematch" class="btn primary" hidden>재대국</button>
+            </div>
+            <button id="ovClose" class="ov-close" aria-label="닫고 판 보기">×</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <div class="room-bar">
+        <div class="room-code">ROOM <strong id="roomCode"></strong></div>
+        <button id="copyLink" class="btn sm">초대 링크</button>
+      </div>
+      <div id="status" class="status"></div>
+      <div class="actions">
+        <button id="undo" class="btn sm">무르기</button>
+        <button id="resign" class="btn sm">기권</button>
+        <button id="rematch" class="btn sm primary" hidden>재대국</button>
+        <button id="sound" class="btn sm" aria-pressed="true">소리 켬</button>
+        <button id="leave" class="btn sm ghost">나가기</button>
+      </div>
+      <div class="chat">
+        <div id="chatLog" class="chat-log" aria-live="polite"></div>
+        <form id="chatForm" class="chat-form">
+          <input id="chatInput" maxlength="200" placeholder="메시지 보내기" autocomplete="off">
+          <button class="btn sm">전송</button>
+        </form>
+      </div>
+      <div id="ruleMeta" class="rule-meta"></div>
+    </aside>
+  </main>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-card">
+      <p id="modalText"></p>
+      <div class="modal-actions">
+        <button id="modalNo" class="btn">거절</button>
+        <button id="modalYes" class="btn primary">수락</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+  <div id="conn" class="conn" hidden>서버와 다시 연결하는 중…</div>
+
+  <script src="/rules.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
