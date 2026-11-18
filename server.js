@@ -11,7 +11,6 @@ const { WebSocketServer } = require('ws');
 const Rules = require('./public/rules.js');
 
 const PORT = Number(process.env.PORT) || 3000;
-const HOST = process.env.HOST || '0.0.0.0';
 const PUBLIC = path.join(__dirname, 'public');
 const N = Rules.N;
 
@@ -36,7 +35,7 @@ const server = http.createServer((req, res) => {
   try { pathname = decodeURIComponent(new URL(req.url, 'http://local').pathname); }
   catch { res.writeHead(400); return res.end('bad request'); }
 
-  if (pathname === '/healthz') {
+  if (pathname === '/healthz' || pathname === '/health') {
     res.writeHead(200, { 'content-type': 'text/plain' });
     return res.end(`ok rooms=${rooms.size}`);
   }
@@ -46,7 +45,19 @@ const server = http.createServer((req, res) => {
   if (!file.startsWith(PUBLIC + path.sep)) { res.writeHead(403); return res.end(); }
 
   fs.readFile(file, (err, data) => {
-    if (err) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('not found'); }
+    if (err) {
+      // 확장자 없는 주소(/ABCD 등)는 메인 화면으로 — 잘못된 링크로 들어와도 'not found' 대신 게임이 열림
+      if (!path.extname(pathname)) {
+        return fs.readFile(path.join(PUBLIC, 'index.html'), (e2, html) => {
+          if (e2) { res.writeHead(500); return res.end(); }
+          res.writeHead(200, { 'content-type': MIME['.html'], 'cache-control': 'no-cache' });
+          res.end(html);
+        });
+      }
+      console.warn(`404 ${req.method} ${pathname}`);
+      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+      return res.end('not found');
+    }
     res.writeHead(200, {
       'content-type': MIME[path.extname(file)] || 'application/octet-stream',
       'cache-control': 'no-cache',
@@ -279,6 +290,7 @@ function handle(ws, m) {
     if (!pid) return;
     if (rooms.size >= MAX_ROOMS) return err(ws, '서버에 방이 너무 많습니다. 잠시 후 다시 시도해 주세요.');
     const room = createRoom({ rule: m.rule, timer: m.timer });
+    console.log(`room ${room.code} created (rooms=${rooms.size})`);
     let prefer = m.color === 'b' || m.color === 'w' ? m.color : (Math.random() < 0.5 ? 'b' : 'w');
     return joinRoom(ws, room, pid, m.name, prefer);
   }
@@ -419,7 +431,9 @@ setInterval(() => {
   }
 }, 25000).unref();
 
-server.listen(PORT, HOST, () => {
+process.on('uncaughtException', (e) => console.error('uncaught', e));
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  ● OMOK 서버 실행 중 → http://localhost:${PORT}\n`);
   try {
     const nets = require('os').networkInterfaces();

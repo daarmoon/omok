@@ -67,7 +67,8 @@
       case 'chat_history': $('#chatLog').innerHTML = ''; m.list.forEach((c) => addChat(c, true)); break;
       case 'chat': addChat(m.msg); break;
       case 'error':
-        toast(m.msg, true);
+        if (m.code === 'NO_ROOM' && currentRoom) toast('서버가 다시 시작돼서 방이 사라졌어요. 새 방을 만들어 주세요.', true);
+        else toast(m.msg, true);
         if (m.code === 'FORBIDDEN') sfx('deny');
         if (m.code === 'NO_ROOM') { currentRoom = null; ss.set('omok.room', ''); history.replaceState(null, '', location.pathname); showLobby(true); }
         break;
@@ -81,7 +82,8 @@
 
   /* ═════════════════════ 화면 전환 ═════════════════════ */
   const params = new URLSearchParams(location.search);
-  let inviteRoom = (params.get('room') || '').toUpperCase().slice(0, 4);
+  const pathCode = location.pathname.replace(/\//g, '');
+  let inviteRoom = (params.get('room') || (/^[A-Za-z0-9]{4}$/.test(pathCode) ? pathCode : '')).toUpperCase().slice(0, 4);
 
   function showInvite(on) {
     $('#inviteBox').hidden = !on;
@@ -102,10 +104,33 @@
     showInvite(!!inviteRoom);
   }
 
-  showInvite(!!inviteRoom);
-  // 새로고침했을 때는 바로 그 방으로 복귀
-  if (inviteRoom && ss.get('omok.room', '') === inviteRoom) currentRoom = inviteRoom;
-  connect();
+  // 탭을 '복제'하면 sessionStorage(플레이어 ID)까지 복사돼서 두 탭이 같은 사람이 되어 버림.
+  // 같은 ID를 쓰는 탭이 이미 열려 있으면 이 탭은 새 ID를 받는다.
+  function checkDuplicateTab() {
+    return new Promise((resolve) => {
+      let bc;
+      try { bc = new BroadcastChannel('omok-pid'); } catch { return resolve(); }
+      let settled = false;
+      const done = () => { if (!settled) { settled = true; resolve(); } };
+      bc.onmessage = (e) => {
+        const d = e.data || {};
+        if (d.q === pid) bc.postMessage({ a: pid });
+        if (d.a === pid && !settled) {
+          pid = makeId(); ss.set('omok.pid', pid); ss.set('omok.room', '');
+          done();
+        }
+      };
+      bc.postMessage({ q: pid });
+      setTimeout(done, 150);
+    });
+  }
+
+  checkDuplicateTab().then(() => {
+    showInvite(!!inviteRoom);
+    // 새로고침했을 때는 바로 그 방으로 복귀
+    if (inviteRoom && ss.get('omok.room', '') === inviteRoom) currentRoom = inviteRoom;
+    connect();
+  });
 
   /* ═════════════════════ 로비 이벤트 ═════════════════════ */
   const opts = { rule: 'free', timer: '0', color: 'random' };
@@ -174,7 +199,9 @@
       }
     }
 
-    pending = null; $('#hint').hidden = true;
+    if (!sameGame || prev.moves.length !== s.moves.length || prev.status !== s.status) {
+      pending = null; $('#hint').hidden = true;
+    }
     deadlineAt = s.turnEndsIn != null ? performance.now() + s.turnEndsIn : null;
     lastSec = null;
 
